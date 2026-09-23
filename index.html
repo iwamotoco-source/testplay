@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pocket Preview</title>
+<style>
+ body{font-family:-apple-system,sans-serif;background:#111;color:#eee;
+      padding:24px;text-align:center}
+ label{display:inline-block;background:#3aa3e3;color:#fff;padding:14px 22px;
+       border-radius:24px;font-weight:bold;margin:20px 0}
+ input{display:none} a.play{display:none;font-size:20px;color:#3aa3e3}
+</style>
+<body>
+<h2>フォルダを選んでテストプレイ</h2>
+<label>📁 フォルダを選ぶ<input type="file" id="pick" webkitdirectory multiple></label>
+<p id="log"></p>
+<a class="play" id="go">▶ ゲームを開く</a>
+
+<script>
+const MIME={html:'text/html',js:'text/javascript',mjs:'text/javascript',
+ css:'text/css',json:'application/json',png:'image/png',jpg:'image/jpeg',
+ jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml',
+ mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',m4a:'audio/mp4',
+ mp4:'video/mp4',woff2:'font/woff2',ttf:'font/ttf',wasm:'application/wasm'};
+const log=m=>document.getElementById('log').textContent=m;
+
+navigator.serviceWorker.register('./sw.js');
+
+document.getElementById('pick').onchange=async e=>{
+  const files=[...e.target.files]; if(!files.length)return;
+  log('読み込み中…');
+  await navigator.serviceWorker.ready;
+  await caches.delete('preview');
+  const cache=await caches.open('preview');
+  let entry=null;
+  for(const f of files){
+    const parts=(f.webkitRelativePath||f.name).split('/');
+    const rel=parts.length>1?parts.slice(1).join('/'):f.name;
+    const ext=rel.split('.').pop().toLowerCase();
+    const type=MIME[ext]||f.type||'application/octet-stream';
+    const url=new URL('play/'+rel,location.href).href;
+    await cache.put(url,new Response(f,{headers:{'Content-Type':type}}));
+    if(rel==='index.html')entry=url;
+    else if(!entry&&ext==='html')entry=url;
+  }
+  if(!entry){log('HTMLファイルが見つかりません');return;}
+  const go=document.getElementById('go');
+  go.href=entry; go.style.display='inline'; log(files.length+'個のファイルを準備しました');
+};
+</script>
